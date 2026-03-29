@@ -70,7 +70,7 @@ def main():
         
         if args.output:
             with open(args.output, 'w') as f:
-            f.write(output)
+                f.write(output)
             print(f"[+] Saved to {args.output}", file=sys.stderr)
         else:
             print(output)
