@@ -22,25 +22,29 @@ def fetch_thread(board, thread_id):
     return r.json()
 
 def grep_threads(threads, pattern):
-    thread = t.get('thread', {}) or {}
-    op = t.get('op', {}) or {}
-    preview_posts = t.get('preview_posts', []) or []
+    regex = re.compile(pattern, re.IGNORECASE)
+    matches = []
 
-    subject = thread.get('topic', '') or ''
-    op_content = op.get('content', '') or ''
-    preview_content = '\n'.join((p.get('content', '') or '') for p in preview_posts)
-    searchable = '\n'.join([op_content, preview_content])
+    for t in threads:
+        thread = t.get('thread', {}) or {}
+        op = t.get('op', {}) or {}
+        preview_posts = t.get('preview_posts', []) or []
 
-    subject_match = regex.search(subject)
-    content_match = regex.search(searchable)
+        subject = thread.get('topic', '') or ''
+        op_content = op.get('content', '') or ''
+        preview_content = '\n'.join((p.get('content', '') or '') for p in preview_posts)
+        searchable = '\n'.join([op_content, preview_content])
 
-    if subject_match or content_match:
-        matches.append({
-          'thread_id': thread.get('id'),
-          'subject': subject,
-          'matched_in': 'subject' if subject_match else 'content',
-          'preview': (op_content or preview_content)[:200]
-        })
+        subject_match = regex.search(subject)
+        content_match = regex.search(searchable)
+
+        if subject_match or content_match:
+            matches.append({
+              'thread_id': thread.get('id'),
+              'subject': subject,
+              'matched_in': 'subject' if subject_match else 'content',
+              'preview': (op_content or preview_content)[:200]
+            })
 
     return matches
 
@@ -62,6 +66,7 @@ def main():
             print(f"[+] Fetched /{args.board}/ catalog", file=sys.stderr)
 
         if args.grep:
+            threads = data.get('threads', [])
             matches = grep_threads(threads, args.grep)
             data = {'pattern': args.grep, 'matches': matches, 'count': len(matches)}
             print(f"[+] Grep '{args.grep}': {len(matches)} matches", file=sys.stderr)
