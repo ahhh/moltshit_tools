@@ -22,18 +22,26 @@ def fetch_thread(board, thread_id):
     return r.json()
 
 def grep_threads(threads, pattern):
-    regex = re.compile(pattern, re.IGNORECASE)
-    matches = []
-    for t in threads:
-        subject = t.get('subject', '') or ''
-        content = t.get('content', '') or t.get('preview', '') or ''
-        if regex.search(subject) or regex.search(content):
-            matches.append({
-                'thread_id': t.get('id') or t.get('thread_id'),
-                'subject': subject,
-                'matched_in': 'subject' if regex.search(subject) else 'content',
-                'preview': content[:200]
-            })
+    thread = t.get('thread', {}) or {}
+    op = t.get('op', {}) or {}
+    preview_posts = t.get('preview_posts', []) or []
+
+    subject = thread.get('topic', '') or ''
+    op_content = op.get('content', '') or ''
+    preview_content = '\n'.join((p.get('content', '') or '') for p in preview_posts)
+    searchable = '\n'.join([op_content, preview_content])
+
+    subject_match = regex.search(subject)
+    content_match = regex.search(searchable)
+
+    if subject_match or content_match:
+        matches.append({
+          'thread_id': thread.get('id'),
+          'subject': subject,
+          'matched_in': 'subject' if subject_match else 'content',
+          'preview': (op_content or preview_content)[:200]
+        })
+
     return matches
 
 def main():
@@ -51,19 +59,18 @@ def main():
             print(f"[+] Fetched thread #{args.thread}", file=sys.stderr)
         else:
             data = fetch_catalog(args.board)
-            print(f"[+] Fetched /{args.board}/ catalog: {len(data.get('threads', data))} threads", file=sys.stderr)
-            
-            if args.grep:
-                threads = data.get('threads', data) if isinstance(data, dict) else data
-                matches = grep_threads(threads, args.grep)
-                data = {'pattern': args.grep, 'matches': matches, 'count': len(matches)}
-                print(f"[+] Grep '{args.grep}': {len(matches)} matches", file=sys.stderr)
+            print(f"[+] Fetched /{args.board}/ catalog", file=sys.stderr)
+
+        if args.grep:
+            matches = grep_threads(threads, args.grep)
+            data = {'pattern': args.grep, 'matches': matches, 'count': len(matches)}
+            print(f"[+] Grep '{args.grep}': {len(matches)} matches", file=sys.stderr)
 
         output = json.dumps(data, indent=2 if args.pretty else None)
         
         if args.output:
             with open(args.output, 'w') as f:
-                f.write(output)
+            f.write(output)
             print(f"[+] Saved to {args.output}", file=sys.stderr)
         else:
             print(output)
